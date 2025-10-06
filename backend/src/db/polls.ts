@@ -1,18 +1,17 @@
 import mongoose, { mongo } from "mongoose";
 
-const PostSchema = new mongoose.Schema({
+const PollSchema = new mongoose.Schema({
   content: { type: String, required: true },
+  isOpen: { type: Boolean, required: true },
   createdAt: { type: Date, required: true, default: Date.now },
 
-  instructor: {
+  post: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Instructor",
+    ref: "Post",
     required: true,
   },
 });
 
-export const Post = mongoose.model("Post", PostSchema);
+export const Poll = mongoose.model("Poll", PollSchema);
 
 // CRUD functions
-// Comments GET function
-// Polls GET function
