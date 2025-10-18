@@ -5,21 +5,19 @@ import { Types } from 'mongoose';
 
 const fileService = new FileService();
 
-// Extend Express Request type to include identity
 declare global {
   namespace Express {
     interface Request {
       identity?: {
         _id: Types.ObjectId;
         username: string;
-        // Add other instructor properties you need
+        
       };
     }
   }
 }
 
 export class FileController {
-  // Upload PDF file with instructor association
   async uploadPDF(req: Request, res: Response) {
     try {
       if (!req.file) {
@@ -52,19 +50,12 @@ export class FileController {
     }
   }
 
-  // Download PDF file (with ownership check)
   async downloadPDF(req: Request, res: Response) {
     try {
       const file = await fileService.getPDFById(req.params.id);
       
       if (!file) {
         return res.status(404).json({ error: 'File not found' });
-      }
-
-      // Optional: Check if the current instructor owns the file
-      if (req.identity && !file.instructor._id.equals(req.identity._id)) {
-        // You might want to allow admin roles to download any file
-        // return res.status(403).json({ error: 'Access denied' });
       }
 
       res.set({
@@ -79,7 +70,6 @@ export class FileController {
     }
   }
 
-  // View PDF in browser
   async viewPDF(req: Request, res: Response) {
     try {
       const file = await fileService.getPDFById(req.params.id);
@@ -113,7 +103,7 @@ export class FileController {
     }
   }
 
-  // Get all PDF files (admin only - optional)
+  // Get all PDF files
   async getAllPDFs(req: Request, res: Response) {
     try {
       const files = await fileService.getAllPDFs();
@@ -123,7 +113,7 @@ export class FileController {
     }
   }
 
-  // Delete PDF file (with ownership check)
+  // Delete PDF file
   async deletePDF(req: Request, res: Response) {
     try {
       if (!req.identity) {
