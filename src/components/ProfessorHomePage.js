@@ -1,28 +1,94 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const ProfessorHomePage = () => {
   const [lectures, setLectures] = useState([]);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleFileUpload = (files) => {
-    if (files && files.length > 0) {
-      const newLectures = Array.from(files).map((file, index) => ({
-        id: Date.now() + index,
-        title: file.name.replace(/\.[^/.]+$/, ""),
-        file: file
-      }));
+  useEffect(() => {
+    fetchMyLectures();
+  }, []);
+
+  const fetchMyLectures = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/posts/my-files', {
+        credentials: 'include'
+      });
       
-      setLectures([...lectures, ...newLectures]);
-      setShowUploadModal(false);
+      if (response.ok) {
+        const files = await response.json();
+        setLectures(files);
+      } else {
+        console.error('Failed to fetch lectures');
+      }
+    } catch (error) {
+      console.error('Error fetching lectures:', error);
+    }
+  };
+
+  const uploadFileToServer = async (file) => {
+    const formData = new FormData();
+    formData.append('pdf', file);
+
+    try {
+      const response = await fetch('http://localhost:8080/posts/upload', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
+
+      return await response.json();
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const handleFileUpload = async (files) => {
+    if (files && files.length > 0) {
+      setUploading(true);
+      setError('');
+
+      try {
+        const uploadPromises = Array.from(files).map(file => 
+          uploadFileToServer(file)
+        );
+
+        const results = await Promise.all(uploadPromises);
+        
+        // Update local state with uploaded files
+        const newLectures = results.map((result, index) => ({
+          id: result.file.id,
+          originalName: result.file.originalName,
+          file: files[index],
+          uploadDate: result.file.uploadDate,
+          size: result.file.size
+        }));
+
+        setLectures(prev => [...prev, ...newLectures]);
+        setShowUploadModal(false);
+        
+      } catch (error) {
+        setError(error.message || 'Failed to upload files');
+        console.error('Upload error:', error);
+      } finally {
+        setUploading(false);
+      }
     }
   };
 
   const handleFileSelect = (event) => {
     handleFileUpload(event.target.files);
   };
+
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -89,7 +155,7 @@ const ProfessorHomePage = () => {
                 style={{ cursor: 'pointer' }}
               >
               </div>
-              <div className="lecture-title">{lecture.title}</div>
+              <div className="lecture-title">{lecture.originalName}</div>
             </div>
             ))}
           </div>
