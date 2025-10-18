@@ -9,6 +9,7 @@ export interface IFile extends Document {
   uploadDate: Date;
   data: Buffer;
   instructor: Types.ObjectId;
+  code: string;
 }
 
 const PostSchema = new mongoose.Schema({
@@ -18,6 +19,7 @@ const PostSchema = new mongoose.Schema({
   size: { type: Number, required: true },
   uploadDate: { type: Date, default: Date.now },
   data: { type: Buffer, required: true },
+  code: {type: String, required: true},
 
   instructor: {
     type: mongoose.Schema.Types.ObjectId,

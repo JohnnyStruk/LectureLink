@@ -10,7 +10,8 @@ export class FileService {
       mimeType: file.mimetype,
       size: file.size,
       data: file.buffer,
-      instructor: instructorId
+      instructor: instructorId,
+      code: (Math.floor(Math.random() * (999999 - 111111) + 111111)).toString() // generate random 6 diget code (could create duplicate but the odds are low so idc for this project)
     });
 
     return await newFile.save();
@@ -21,6 +22,11 @@ export class FileService {
     return await Post.findById(id).populate('instructor', 'username');
   }
 
+  // Get PDF by code
+    async getPDFByCode(_code: string): Promise<IFile | null> {
+    return await Post.findOne({code: _code});
+  }
+
   // Get all PDF files for a specific instructor
   async getPDFsByInstructor(instructorId: Types.ObjectId): Promise<IFile[]> {
     return await Post.find({ instructor: instructorId })
@@ -29,7 +35,7 @@ export class FileService {
       .sort({ uploadDate: -1 });
   }
 
-  // Get all PDF files (for admin purposes)
+  // Get all PDF files
   async getAllPDFs(): Promise<IFile[]> {
     return await Post.find()
       .select('-data')
@@ -37,7 +43,7 @@ export class FileService {
       .sort({ uploadDate: -1 });
   }
 
-  // Delete PDF file (with instructor check for security)
+  // Delete PDF file
   async deletePDF(id: string, instructorId: Types.ObjectId): Promise<boolean> {
     const result = await Post.findOneAndDelete({ 
       _id: id, 
@@ -46,7 +52,7 @@ export class FileService {
     return result !== null;
   }
 
-  // Check if file belongs to instructor (for authorization)
+  // Check if file belongs to instructor
   async isFileOwner(fileId: string, instructorId: Types.ObjectId): Promise<boolean> {
     const file = await Post.findOne({ _id: fileId, instructor: instructorId });
     return file !== null;

@@ -12,5 +12,6 @@ export default (router: express.Router) => {
     router.get('/posts/files', isAuthenticated, fileController.getAllPDFs); // All files
     router.get('/posts/download/:id', isAuthenticated, fileController.downloadPDF);
     router.get('/posts/view/:id', isAuthenticated, fileController.viewPDF);
+    router.get('/posts/code/:code', fileController.getPDFByCode);
     router.delete('/posts/:id', isAuthenticated, fileController.deletePDF);
 };

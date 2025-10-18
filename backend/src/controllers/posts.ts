@@ -113,6 +113,17 @@ export class FileController {
     }
   }
 
+  // Get PDF by code
+  async getPDFByCode(req: Request, res: Response) {
+    try {
+      const file = await fileService.getPDFByCode(req.params.code);
+      res.json(file);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch file' });
+    }
+  }
+  
+
   // Delete PDF file
   async deletePDF(req: Request, res: Response) {
     try {
