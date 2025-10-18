@@ -38,9 +38,11 @@ export class FileController {
           originalName: savedFile.originalName,
           size: savedFile.size,
           uploadDate: savedFile.uploadDate,
+          code: savedFile.code,
           instructor: {
             id: req.identity._id,
             username: req.identity.username
+        
           }
         }
       });
