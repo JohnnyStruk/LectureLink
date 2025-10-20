@@ -1,6 +1,7 @@
 import express from "express";
 import { get, identity, merge } from "lodash";
 import { getInstructorBySessionToken } from "../db/instructors";
+import { Types } from "mongoose";
 
 export const isOwner = async (
   req: express.Request,
@@ -9,7 +10,7 @@ export const isOwner = async (
 ) => {
   try {
     const { id } = req.params;
-    const currentInstructorId = get(req, "identity._id") as string;
+    const currentInstructorId = get(req, "identity._id") as Types.ObjectId;
 
     if (!currentInstructorId) {
       return res.sendStatus(403);
