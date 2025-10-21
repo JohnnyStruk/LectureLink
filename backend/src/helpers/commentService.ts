@@ -39,4 +39,11 @@ export class CommentService {
         comment.save();
         return comment.votes;
     };
+
+    async toggleViewed(id: string): Promise<boolean> {
+        const comment = await Comment.findById(id);
+        comment.viewed = !comment.viewed;
+        comment.save();
+        return comment.viewed;
+    }
 }

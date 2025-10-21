@@ -6,7 +6,7 @@ export interface IComment extends Document {
   content: String;
   page: number;
   createdAt: Date;
-  viewed: Boolean;
+  viewed: boolean;
   votes: number;
   post: Types.ObjectId;
 }

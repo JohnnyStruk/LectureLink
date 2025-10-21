@@ -51,4 +51,14 @@ export class CommentController {
             return res.sendStatus(400);
         }
     };
+
+    async toggleViewed(req: express.Request, res: express.Response) {
+        try {
+            const viewed = await commentService.toggleViewed(req.params.id);
+            res.status(200).json({viewed: viewed});
+        } catch (error) {
+            console.log(error);
+            return res.sendStatus(400);
+        }
+    };
 }
