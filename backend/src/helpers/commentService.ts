@@ -32,4 +32,11 @@ export class CommentService {
         const comments = await Comment.find({ post: _post._id });
         return comments;
     };
+
+    async incrementVotes(id: string): Promise<number> {
+        const comment = await Comment.findById(id);
+        comment.votes++;
+        comment.save();
+        return comment.votes;
+    };
 }

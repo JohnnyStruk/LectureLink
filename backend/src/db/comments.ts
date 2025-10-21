@@ -4,10 +4,10 @@ export interface IComment extends Document {
   _id: Types.ObjectId;
   isQuestion: Boolean;
   content: String;
-  page: Number;
+  page: number;
   createdAt: Date;
   viewed: Boolean;
-  votes: Number;
+  votes: number;
   post: Types.ObjectId;
 }
 

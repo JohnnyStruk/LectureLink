@@ -41,4 +41,14 @@ export class CommentController {
             return res.sendStatus(400);
         }
     };
+
+    async incrementVotes(req: express.Request, res: express.Response) {
+        try {
+            const votes = await commentService.incrementVotes(req.params.id);
+            res.status(200).json({votes: votes});
+        } catch (error) {
+            console.log(error);
+            return res.sendStatus(400);
+        }
+    };
 }
