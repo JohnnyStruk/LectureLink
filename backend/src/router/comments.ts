@@ -6,7 +6,7 @@ const commentController = new CommentController();
 
 export default (router: express.Router) => {
     router.post('/comments/post', commentController.postComment);
-    router.get('/comments/:postId', commentController.getCommentsByPost);
+    router.get('/posts/get-comments/:postId', commentController.getCommentsByPost);
     router.post('/comments/vote/:id', commentController.incrementVotes);
     router.post('/comments/toggle-viewed/:id', commentController.toggleViewed);
 };
