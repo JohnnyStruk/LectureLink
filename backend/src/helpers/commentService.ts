@@ -18,7 +18,6 @@ export class CommentService {
     };
 
     async getCommentsByPost(postId: string): Promise<IComment[]> {
-        console.log(postId);
         if (!Types.ObjectId.isValid(postId)) {
             throw new Error('Invalid post ID');
         }
@@ -46,4 +45,8 @@ export class CommentService {
         comment.save();
         return comment.viewed;
     }
+
+    async getById(id: string): Promise<IComment> {
+        return await Comment.findById(id);
+    };
 }

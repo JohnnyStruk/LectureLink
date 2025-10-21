@@ -61,4 +61,14 @@ export class CommentController {
             return res.sendStatus(400);
         }
     };
+
+    async getById(req: express.Request, res: express.Response) {
+        try {
+            const comment = await commentService.getById(req.params.id);
+            res.status(200).json(comment);
+        } catch (error) {
+            console.log(error);
+            return res.sendStatus(400);
+        }
+    };
 }
