@@ -1,6 +1,22 @@
 ﻿# LectureLink
 
-This is the README for LectureLink. Instructions to run the project TBA
+LectureLink is a platform designed to improve student engagement in synchronous online classes. It allows instructors to upload lecture materials and students to access them using unique session codes, where they can post questions and comments on specific slides/pages.
+
+## Features
+
+### For Instructors:
+- Upload lecture files (PDF, PowerPoint, Word documents, etc.)
+- Each uploaded file automatically receives a unique 6-character access code
+- View all uploaded lectures with their access codes on the dashboard
+- Preview lectures with the integrated PDF/slide viewer
+- See student questions and comments per slide in real-time
+- Delete lectures when needed
+
+### For Students:
+- Enter a 6-character session code to access a specific lecture
+- View lecture slides/pages with thumbnail navigation
+- Post questions and comments on specific slides
+- All interactions are organized by slide number
 
 ## How to run:
 
@@ -10,6 +26,26 @@ npm start
 ```
 
 To close the development server, press `Ctrl + C` and then type `y`.
+
+## Quick Start Guide
+
+### As an Instructor:
+1. Click "Instructor Login" button
+2. Create a username and password and login to your dashboard.
+3. Click "Upload" to add lecture files
+4. Each file will display with a unique 6-character code (e.g., "A7X2K9")
+5. Share this code with your students
+6. Click on any lecture to preview it and see student questions/comments
+
+### As a Student:
+1. On the homepage, enter the 6-character code provided by your instructor
+2. Click "Join Session" to access the lecture
+3. Navigate through slides using the thumbnails on the left
+4. View other students' questions and comments in the right sidebar
+5. See which questions have been answered by the professor (marked with ✓)
+6. Type your question or comment in the input field at the bottom
+7. Click "Post Question" or "Post Comment" to submit
+8. Your posts will appear in real-time for other students and the professor
 
 # Backend API Outline
 :text in url mean that the value is to be put in the url, ex:
