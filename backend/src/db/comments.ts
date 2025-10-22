@@ -1,20 +1,32 @@
-import mongoose, { mongo } from "mongoose";
+import mongoose, { mongo, Types } from "mongoose";
+
+export interface IComment extends Document {
+  _id: Types.ObjectId;
+  isQuestion: Boolean;
+  content: String;
+  page: number;
+  createdAt: Date;
+  viewed: boolean;
+  votes: number;
+  postId: Types.ObjectId;
+}
 
 const CommentSchema = new mongoose.Schema({
   isQuestion: { type: Boolean, required: true },
   content: { type: String, required: true },
-  createdAt: { type: Date, required: true, default: Date.now },
-  viewed: { type: Boolean, required: true },
-  votes: { type: Number, required: true, default: 0 },
+  page: { type: Number, required: true}, // the page of the post(pdf) that the comment was left on
+  createdAt: { type: Date, default: Date.now },
+  viewed: { type: Boolean, default: false },
+  votes: { type: Number, default: 0 },
 
-  post: {
+  postId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Post",
     required: true,
   },
 });
 
-export const Comment = mongoose.model("Comment", CommentSchema);
+export const Comment = mongoose.model<IComment>("Comment", CommentSchema);
 
 export const createComment = (values: Record<string, any>) =>
   new Comment(values).save().then((comment) => comment.toObject());
