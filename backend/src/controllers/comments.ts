@@ -20,7 +20,7 @@ export class CommentController {
                     createdAt: savedComment.createdAt,
                     viewed: savedComment.viewed,
                     votes: savedComment.votes,
-                    post: savedComment.post
+                    postId: savedComment.postId
                 }
             });
         } catch (error) {

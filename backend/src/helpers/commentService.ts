@@ -11,7 +11,7 @@ export class CommentService {
           isQuestion: values["isQuestion"],
           content: values["content"],
           page: values["page"],
-          post: _post._id,     
+          postId: _post._id,     
         });
 
         return await newComment.save();
@@ -28,7 +28,7 @@ export class CommentService {
             throw new Error('Post not found');
         }
 
-        const comments = await Comment.find({ post: _post._id });
+        const comments = await Comment.find({ postId: _post._id });
         return comments;
     };
 

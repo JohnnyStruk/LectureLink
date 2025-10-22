@@ -8,7 +8,7 @@ export interface IComment extends Document {
   createdAt: Date;
   viewed: boolean;
   votes: number;
-  post: Types.ObjectId;
+  postId: Types.ObjectId;
 }
 
 const CommentSchema = new mongoose.Schema({
@@ -19,7 +19,7 @@ const CommentSchema = new mongoose.Schema({
   viewed: { type: Boolean, default: false },
   votes: { type: Number, default: 0 },
 
-  post: {
+  postId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Post",
     required: true,
