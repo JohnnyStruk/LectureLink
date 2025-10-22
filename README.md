@@ -16,14 +16,24 @@ To close the development server, press `Ctrl + C` and then type `y`.
 /posts/:id would be /posts/12345
 
 ## Auth
-todo
+**POST /auth/register**
+Registers a new instructor
+> Request Body:
+> `username: String`
+> `password: String`
+
+**POST /auth/login**
+Logs the instructor in
+> Request Body:
+> `username: String`
+> `password: String`
 
 ## Instructors
 todo
 
 ## Posts
 **POST /posts/upload**
-Uploads pdf file to db as a new post for the logged in instructor
+Uploads pdf file to db as a new post for the logged in instructor.
 Must be signed into an instructor account
 > Request Body: 
 > `pdf : [file.pdf]`
@@ -33,7 +43,7 @@ Must be signed into an instructor account
 > `file: { id, filename, originalName, size, uploadDate, code, instructor { id, username } }`
 
 **GET /posts/my-files**
-Returns all posts for the currently logged in instructor
+Returns all posts for the currently logged in instructor.
 Must be signed into an instructor account
 > Response (array):
 > HTTP 200
@@ -62,7 +72,7 @@ Gets all the comments for the post
 > `{ _id, isQuestion, content, page, viewed, votes, postId, createdAt }`
 
 **DELETE /posts/:id**
-Deletes posts
+Deletes posts.
 Must be signed in
 > Response:
 > HTTP 200
