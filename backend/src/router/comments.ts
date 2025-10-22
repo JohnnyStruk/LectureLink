@@ -5,7 +5,7 @@ import { CommentController } from "../controllers/comments";
 const commentController = new CommentController();
 
 export default (router: express.Router) => {
-    router.post('/comments/post', commentController.postComment);
+    router.put('/comments/post', commentController.postComment);
     router.get('/posts/get-comments/:postId', commentController.getCommentsByPost);
     router.get('/comments/:id', commentController.getById);
     router.post('/comments/vote/:id', commentController.incrementVotes);
