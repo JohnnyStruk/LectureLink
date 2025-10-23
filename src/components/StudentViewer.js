@@ -231,7 +231,14 @@ const StudentViewer = ({ lecture, onClose }) => {
           maxWidth: '400px',
           width: '90%'
         }}>
-          <div style={{ fontSize: '48px', marginBottom: '20px' }}>📄</div>
+          <div style={{ 
+            fontSize: '32px', 
+            marginBottom: '20px',
+            fontWeight: 'bold',
+            color: '#0066CC'
+          }}>
+            PDF
+          </div>
           <h2 style={{ margin: '0 0 10px 0', color: '#2c3e50' }}>Loading content...</h2>
           <p style={{ margin: 0, color: '#7f8c8d', fontSize: '14px' }}>
             {lecture.originalName}
@@ -347,7 +354,7 @@ const StudentViewer = ({ lecture, onClose }) => {
                     title={`PDF Page ${page.pageNumber} Thumbnail`}
                   />
                 ) : (
-                  '📄'
+                  <span style={{ fontSize: '28px', fontWeight: 'bold', color: '#0066CC' }}>PDF</span>
                 )}
               </div>
               <div style={{
@@ -461,7 +468,7 @@ const StudentViewer = ({ lecture, onClose }) => {
               fontSize: '14px',
               fontWeight: 'bold'
             }}>
-              ✓ {postSuccess}
+              {postSuccess}
             </div>
           )}
           <div style={{
@@ -601,7 +608,7 @@ const StudentViewer = ({ lecture, onClose }) => {
                       fontSize: '10px',
                       fontWeight: 'bold'
                     }}>
-                      ✓ Answered
+                      Answered
                     </span>
                   )}
                 </div>

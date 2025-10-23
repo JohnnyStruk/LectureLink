@@ -7,6 +7,9 @@ import cors from "cors";
 import mongoose from "mongoose";
 import { error } from "console";
 import router from "./router";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const app = express();
 
@@ -29,10 +32,19 @@ server.listen(8080, () => {
   console.log("Server running on http://localhost:8080/");
 });
 
-const MONGO_URL = "";
+const MONGO_URL = process.env.MONGO_URL || "";
 
-mongoose.Promise = Promise;
-mongoose.connect(MONGO_URL);
-mongoose.connection.on("error", (error: Error) => console.log(error));
+if (!MONGO_URL) {
+  console.warn("WARNING: MONGO_URL not set in .env file. Database features will not work.");
+} else {
+  mongoose.Promise = Promise;
+  mongoose.connect(MONGO_URL)
+    .then(() => console.log("Connected to MongoDB"))
+    .catch((error) => {
+      console.warn("WARNING: Could not connect to MongoDB.");
+      console.warn("Error:", error.message);
+    });
+  mongoose.connection.on("error", (error: Error) => console.log("MongoDB error:", error.message));
+}
 
 app.use("/", router());

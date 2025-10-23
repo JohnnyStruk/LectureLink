@@ -13,16 +13,6 @@ const LoginModal = ({ isOpen, onClose, onLogin }) => {
     setIsLoading(true);
     setError('');
 
-    // Temporary dev bypass (remove in production)
-    if (username === 'dev' && password === 'dev') {
-      setTimeout(() => {
-        onLogin({ _id: 'dev-user', username: 'dev', message: 'Development login' });
-        onClose();
-        setIsLoading(false);
-      }, 500);
-      return;
-    }
-
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
@@ -93,10 +83,11 @@ const LoginModal = ({ isOpen, onClose, onLogin }) => {
       <div style={{
         backgroundColor: '#0066CC',
         padding: '40px',
-        borderRadius: '8px',
+        borderRadius: '12px',
         width: '400px',
         maxWidth: '90%',
-        textAlign: 'center'
+        textAlign: 'center',
+        boxShadow: '0 8px 32px rgba(0, 102, 204, 0.3)'
       }}>
         <h2 style={{ 
           color: 'white', 
@@ -207,12 +198,12 @@ const LoginModal = ({ isOpen, onClose, onLogin }) => {
             background: 'none',
             border: 'none',
             color: 'white',
-            fontSize: '24px',
+            fontSize: '18px',
             cursor: 'pointer',
             fontWeight: 'bold'
           }}
         >
-          ×
+          X
         </button>
       </div>
     </div>

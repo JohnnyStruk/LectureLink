@@ -128,16 +128,22 @@ const HomePage = () => {
             onChange={(e) => setCode(e.target.value.toUpperCase())}
             placeholder="Enter Session Code"
             style={{
-              width: '300px',
-              padding: '15px',
-              fontSize: '16px',
+              width: '320px',
+              padding: '16px 20px',
+              fontSize: '18px',
               border: '2px solid #D3D3D3',
-              borderRadius: '4px',
+              borderRadius: '8px',
               marginBottom: '10px',
               fontFamily: 'Arial, sans-serif',
-              textTransform: 'uppercase'
+              textTransform: 'uppercase',
+              letterSpacing: '2px',
+              textAlign: 'center',
+              transition: 'border-color 0.2s',
+              outline: 'none'
             }}
             maxLength={6}
+            onFocus={(e) => e.target.style.borderColor = '#0066CC'}
+            onBlur={(e) => e.target.style.borderColor = '#D3D3D3'}
           />
           {error && (
             <div style={{
@@ -156,12 +162,24 @@ const HomePage = () => {
               backgroundColor: '#ADD8E6',
               border: '2px solid #87CEEB',
               color: 'black',
-              padding: '15px 30px',
-              borderRadius: '4px',
+              padding: '16px 40px',
+              borderRadius: '8px',
               cursor: 'pointer',
-              fontSize: '16px',
+              fontSize: '18px',
               fontWeight: 'bold',
-              fontFamily: 'Arial, sans-serif'
+              fontFamily: 'Arial, sans-serif',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 2px 8px rgba(173, 216, 230, 0.3)'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = '#87CEEB';
+              e.target.style.transform = 'translateY(-2px)';
+              e.target.style.boxShadow = '0 4px 12px rgba(173, 216, 230, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = '#ADD8E6';
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 2px 8px rgba(173, 216, 230, 0.3)';
             }}
           >
             Join Session

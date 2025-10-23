@@ -5,11 +5,12 @@ LectureLink is a platform designed to improve student engagement in synchronous 
 ## Features
 
 ### For Instructors:
-- Upload lecture files (PDF, PowerPoint, Word documents, etc.)
+- Upload lecture files (PDF only)
 - Each uploaded file automatically receives a unique 6-character access code
 - View all uploaded lectures with their access codes on the dashboard
-- Preview lectures with the integrated PDF/slide viewer
+- Preview lectures with the integrated PDF viewer
 - See student questions and comments per slide in real-time
+- Acknowledge student questions to mark them as answered
 - Delete lectures when needed
 
 ### For Students:
@@ -18,14 +19,59 @@ LectureLink is a platform designed to improve student engagement in synchronous 
 - Post questions and comments on specific slides
 - All interactions are organized by slide number
 
-## How to run:
+## Setup
 
+### Prerequisites
+- Node.js installed
+
+### Installation
+
+**Install dependencies for both frontend and backend:**
 ```bash
 npm install
-npm start
+cd backend
+npm install
+cd ..
 ```
 
-To close the development server, press `Ctrl + C` and then type `y`.
+### Running the Application
+
+**To start both frontend and backend simultaneously:**
+```bash
+npm run dev
+```
+
+**Or run them separately:**
+- Frontend only: `npm start` (runs on http://localhost:3000)
+- Backend only: `npm run server` (runs on http://localhost:8080)
+
+To close the development servers, press `Ctrl + C`.
+
+### Database Configuration (Required)
+
+**MongoDB Setup Required:**
+
+This application requires a MongoDB database for authentication and data storage. You have two options:
+
+**Option 1: MongoDB Atlas (Recommended)**
+1. Go to [mongodb.com/cloud/atlas](https://www.mongodb.com/cloud/atlas)
+2. Create a free account and cluster
+3. Create a database user
+4. Get your connection string
+
+**Option 2: Local MongoDB**
+1. Install MongoDB locally
+2. Start MongoDB service
+3. Use connection string: `mongodb://localhost:27017/lecturelink`
+
+**Configure the Application:**
+1. Create a file `backend/.env` in the backend directory
+2. Add your MongoDB connection string:
+   ```
+   MONGO_URL=mongodb+srv://username:password@cluster.mongodb.net/lecturelink
+   ```
+
+**Note:** The `.env` file is not included in the repository for security reasons.
 
 ## Quick Start Guide
 
@@ -42,7 +88,7 @@ To close the development server, press `Ctrl + C` and then type `y`.
 2. Click "Join Session" to access the lecture
 3. Navigate through slides using the thumbnails on the left
 4. View other students' questions and comments in the right sidebar
-5. See which questions have been answered by the professor (marked with ✓)
+5. See which questions have been answered by the professor (marked as "Answered")
 6. Type your question or comment in the input field at the bottom
 7. Click "Post Question" or "Post Comment" to submit
 8. Your posts will appear in real-time for other students and the professor

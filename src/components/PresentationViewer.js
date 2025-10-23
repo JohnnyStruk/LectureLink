@@ -63,28 +63,8 @@ const PresentationViewer = ({ lecture, onClose }) => {
     
     try {
       if (lecture.file) {
-        const fileType = lecture.originalName?.split('.').pop()?.toLowerCase();
-        
-        switch (fileType) {
-          case 'pdf':
-            await loadPDFContent();
-            break;
-          case 'ppt':
-          case 'pptx':
-            await loadPowerPointContent();
-            break;
-          case 'doc':
-          case 'docx':
-            await loadWordContent();
-            break;
-          case 'txt':
-            await loadTextContent();
-            break;
-          default:
-            await loadGenericContent();
-        }
+        await loadPDFContent();
       } else {
-        // Fallback to mock content if no file
         generateMockPages();
       }
     } catch (error) {
@@ -145,120 +125,17 @@ const PresentationViewer = ({ lecture, onClose }) => {
     }
   };
 
-  const loadPowerPointContent = async () => {
-    // For PowerPoint files
-    const mockPages = [];
-    const pageCount = Math.floor(Math.random() * 15) + 8; // Random 8-23 slides
-    
-    for (let i = 0; i < pageCount; i++) {
-      mockPages.push({
-        id: i,
-        title: `Slide ${i + 1}`,
-        content: `PowerPoint Slide ${i + 1}\n\nTitle: ${lecture.originalName}\n\nThis slide contains content from the PowerPoint presentation. In a real implementation, this would show the actual slide content including text, images, and formatting.`,
-        thumbnail: `📊`,
-        backgroundColor: `hsl(${i * 25}, 70%, 85%)`,
-        type: 'powerpoint'
-      });
-    }
-    
-    setPages(mockPages);
-    setLoading(false);
-  };
-
-  const loadWordContent = async () => {
-    // For Word documents
-    const mockPages = [];
-    const pageCount = Math.floor(Math.random() * 8) + 3; // Random 3-11 pages
-    
-    for (let i = 0; i < pageCount; i++) {
-      mockPages.push({
-        id: i,
-        title: `Page ${i + 1}`,
-        content: `Word Document - Page ${i + 1}\n\nDocument: ${lecture.originalName}\n\nThis page contains content from the Word document. In a real implementation, this would show the actual text content with formatting preserved.`,
-        thumbnail: `📝`,
-        backgroundColor: `hsl(${i * 40}, 50%, 92%)`,
-        type: 'word'
-      });
-    }
-    
-    setPages(mockPages);
-    setLoading(false);
-  };
-
-  const loadTextContent = async () => {
-    // For text files, try to read the actual content
-    try {
-      const text = await readFileAsText(lecture.file);
-      const lines = text.split('\n');
-      const pagesPerScreen = 20; // Approximate lines per page
-      const pageCount = Math.ceil(lines.length / pagesPerScreen);
-      
-      const mockPages = [];
-      for (let i = 0; i < pageCount; i++) {
-        const startLine = i * pagesPerScreen;
-        const endLine = Math.min(startLine + pagesPerScreen, lines.length);
-        const pageContent = lines.slice(startLine, endLine).join('\n');
-        
-        mockPages.push({
-          id: i,
-          title: `Page ${i + 1}`,
-          content: pageContent || `Empty page ${i + 1}`,
-          thumbnail: `📄`,
-          backgroundColor: `hsl(${i * 20}, 30%, 95%)`,
-          type: 'text'
-        });
-      }
-      
-      setPages(mockPages);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error reading text file:', error);
-      generateMockPages();
-    }
-  };
-
-  const loadGenericContent = async () => {
-    // For unknown file types
-    const mockPages = [];
-    const pageCount = 3;
-    
-    for (let i = 0; i < pageCount; i++) {
-      mockPages.push({
-        id: i,
-        title: `Page ${i + 1}`,
-        content: `File: ${lecture.originalName}\n\nThis is a preview of page ${i + 1} from the uploaded file. The actual content would be displayed here based on the file type.`,
-        thumbnail: `📁`,
-        backgroundColor: `hsl(${i * 60}, 40%, 88%)`,
-        type: 'generic'
-      });
-    }
-    
-    setPages(mockPages);
-    setLoading(false);
-  };
-
-  const readFileAsText = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result);
-      reader.onerror = (e) => reject(e);
-      reader.readAsText(file);
-    });
-  };
-
   const generateMockPages = () => {
-    // Fallback mock pages
     const mockPages = [];
-    const pageCount = lecture.originalName?.includes('.ppt') ? 8 : 5;
+    const pageCount = 5;
     
     for (let i = 0; i < pageCount; i++) {
       mockPages.push({
         id: i,
-        title: `Slide ${i + 1}`,
-        content: `This is the content of slide ${i + 1}. In a real implementation, this would show the actual slide content from the uploaded file.`,
-        thumbnail: `📄`,
-        backgroundColor: `hsl(${i * 45}, 70%, 85%)`,
-        type: 'mock'
+        title: `Page ${i + 1}`,
+        type: 'pdf',
+        pageNumber: i + 1,
+        totalPages: pageCount
       });
     }
     
@@ -364,7 +241,14 @@ const PresentationViewer = ({ lecture, onClose }) => {
           maxWidth: '400px',
           width: '90%'
         }}>
-          <div style={{ fontSize: '48px', marginBottom: '20px' }}>📄</div>
+          <div style={{ 
+            fontSize: '32px', 
+            marginBottom: '20px',
+            fontWeight: 'bold',
+            color: '#0066CC'
+          }}>
+            PDF
+          </div>
           <h2 style={{ margin: '0 0 10px 0', color: '#2c3e50' }}>
             {loadingMessage}
           </h2>
@@ -469,7 +353,7 @@ const PresentationViewer = ({ lecture, onClose }) => {
                     title={`PDF Page ${page.pageNumber} Thumbnail`}
                   />
                 ) : (
-                  page.thumbnail
+                  <span style={{ fontSize: '28px', fontWeight: 'bold' }}>PDF</span>
                 )}
               </div>
               <div style={{
@@ -567,7 +451,7 @@ const PresentationViewer = ({ lecture, onClose }) => {
                 fontSize: '14px'
               }}
             >
-              ✕ Close
+              Close
             </button>
           </div>
         </div>
@@ -773,7 +657,7 @@ const PresentationViewer = ({ lecture, onClose }) => {
                       fontSize: '18px',
                       fontWeight: 'bold',
                       lineHeight: '1'
-                    }}>✓</span>
+                    }}>OK</span>
                   </div>
                 )}
               </div>

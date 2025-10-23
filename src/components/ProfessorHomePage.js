@@ -97,14 +97,26 @@ const ProfessorHomePage = () => {
       setUploading(true);
       setError('');
 
+      const pdfFiles = Array.from(files).filter(file => file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'));
+      
+      if (pdfFiles.length === 0) {
+        setError('Please upload only PDF files');
+        setUploading(false);
+        return;
+      }
+
+      if (pdfFiles.length < files.length) {
+        setError(`${files.length - pdfFiles.length} non-PDF file(s) skipped. Only PDFs are accepted.`);
+      }
+
       try {
-        const uploadPromises = Array.from(files).map(file => uploadFileToServer(file));
+        const uploadPromises = pdfFiles.map(file => uploadFileToServer(file));
         const results = await Promise.all(uploadPromises);
         
         const newLectures = results.map((result, index) => ({
           id: result.file.id,
           originalName: result.file.originalName,
-          file: files[index],
+          file: pdfFiles[index],
           uploadDate: result.file.uploadDate,
           size: result.file.size,
           fileData: result.file.fileData,
@@ -274,7 +286,7 @@ const ProfessorHomePage = () => {
           >
             <span style={{ 
               color: 'black', 
-              fontSize: '24px', 
+              fontSize: '18px', 
               fontWeight: 'bold',
               position: 'absolute',
               top: '45%',
@@ -283,7 +295,7 @@ const ProfessorHomePage = () => {
               lineHeight: '1',
               margin: 0,
               padding: 0
-            }}>×</span>
+            }}>X</span>
           </div>
           <span style={{ color: 'black', fontSize: '14px', fontWeight: 'bold' }}>logout</span>
         </div>
@@ -302,9 +314,15 @@ const ProfessorHomePage = () => {
           <div style={{ 
             textAlign: 'center', 
             color: '#666',
-            fontSize: '18px'
+            fontSize: '18px',
+            padding: '60px 40px',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '12px',
+            border: '2px dashed #dee2e6'
           }}>
-            No lectures uploaded yet. Click "Upload" to add your first lecture.
+            <div style={{ fontSize: '48px', marginBottom: '20px', color: '#0066CC' }}>PDF</div>
+            <p style={{ margin: '0 0 10px 0', fontSize: '20px', color: '#333' }}>No lectures uploaded yet</p>
+            <p style={{ margin: 0 }}>Click "Upload" to add your first lecture</p>
           </div>
         ) : (
           <div style={{
@@ -323,23 +341,25 @@ const ProfessorHomePage = () => {
               >
                 <div 
                   style={{
-                    width: '200px',
-                    height: '150px',
-                    backgroundColor: '#f0f0f0',
-                    border: '2px solid #ccc',
+                    width: '220px',
+                    height: '160px',
+                    backgroundColor: '#f8f9fa',
+                    border: '2px solid #dee2e6',
                     borderRadius: '8px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    marginBottom: '10px',
-                    fontSize: '14px',
-                    color: '#666',
-                    position: 'relative'
+                    marginBottom: '12px',
+                    fontSize: '48px',
+                    color: '#0066CC',
+                    position: 'relative',
+                    transition: 'all 0.2s ease',
+                    boxShadow: hoveredLecture === lecture.id ? '0 4px 12px rgba(0, 102, 204, 0.2)' : '0 2px 4px rgba(0,0,0,0.1)'
                   }}
                   onClick={() => handleLectureClick(lecture)}
                 >
-                  Lecture Preview
+                  PDF
                   
                   {/* Delete Button - Shows on Hover */}
                   {hoveredLecture === lecture.id && (
@@ -370,14 +390,14 @@ const ProfessorHomePage = () => {
                     >
                       <span style={{
                         color: 'white',
-                        fontSize: '20px',
+                        fontSize: '16px',
                         fontWeight: 'bold',
                         lineHeight: '1',
                         position: 'absolute',
                         top: '47%',
                         left: '50%',
                         transform: 'translate(-50%, -50%)'
-                      }}>×</span>
+                      }}>DEL</span>
                     </div>
                   )}
                 </div>
@@ -430,13 +450,21 @@ const ProfessorHomePage = () => {
           <div style={{
             backgroundColor: 'white',
             padding: '40px',
-            borderRadius: '8px',
-            border: '2px solid black',
-            maxWidth: '500px',
+            borderRadius: '12px',
+            border: '2px solid #0066CC',
+            maxWidth: '520px',
             width: '90%',
-            textAlign: 'center'
+            textAlign: 'center',
+            boxShadow: '0 4px 20px rgba(0, 102, 204, 0.15)'
           }}>
-            <h2 style={{ marginBottom: '20px', fontSize: '24px' }}>Upload Lecture File</h2>
+            <h2 style={{ 
+              marginBottom: '25px', 
+              fontSize: '26px',
+              color: '#0066CC',
+              fontWeight: 'bold'
+            }}>
+              Upload Lecture PDF
+            </h2>
             
             <div
               onDragEnter={handleDrag}
@@ -444,22 +472,33 @@ const ProfessorHomePage = () => {
               onDragOver={handleDrag}
               onDrop={handleDrop}
               style={{
-                border: dragActive ? '3px dashed #007bff' : '3px dashed #ccc',
+                border: dragActive ? '3px dashed #0066CC' : '3px dashed #ccc',
                 borderRadius: '8px',
                 padding: '40px 20px',
                 marginBottom: '20px',
-                backgroundColor: dragActive ? '#f0f8ff' : '#f9f9f9',
+                backgroundColor: dragActive ? '#e6f2ff' : '#f9f9f9',
                 cursor: 'pointer',
                 transition: 'all 0.3s ease'
               }}
               onClick={() => document.getElementById('file-input').click()}
             >
-              <div style={{ fontSize: '48px', marginBottom: '10px' }}>📁</div>
-              <p style={{ fontSize: '18px', marginBottom: '10px' }}>
-                {dragActive ? 'Drop your files here' : 'Drag and drop files here'}
+              <div style={{ 
+                fontSize: '64px', 
+                marginBottom: '15px',
+                color: dragActive ? '#0066CC' : '#666'
+              }}>
+                PDF
+              </div>
+              <p style={{ 
+                fontSize: '18px', 
+                marginBottom: '10px',
+                color: '#333',
+                fontWeight: '500'
+              }}>
+                {dragActive ? 'Drop your PDF files here' : 'Drag and drop PDF files here'}
               </p>
               <p style={{ color: '#666', fontSize: '14px' }}>
-                or select multiple files
+                or click to select files
               </p>
             </div>
 
@@ -467,14 +506,19 @@ const ProfessorHomePage = () => {
               id="file-input"
               type="file"
               onChange={handleFileSelect}
-              accept=".pdf,.ppt,.pptx,.doc,.docx,.txt"
+              accept=".pdf,application/pdf"
               multiple
               style={{ display: 'none' }}
             />
 
-                    <p style={{ fontSize: '14px', color: '#666', marginBottom: '20px' }}>
-                      Supported formats: PDF, PowerPoint, Word documents, Text files
-                    </p>
+            <p style={{ 
+              fontSize: '14px', 
+              color: '#666', 
+              marginBottom: '20px',
+              textAlign: 'center'
+            }}>
+              Only PDF files are supported
+            </p>
                     
                     {uploading && (
                       <div style={{ 
