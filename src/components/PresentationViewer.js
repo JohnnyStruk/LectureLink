@@ -1,4 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import PollModal from './PollModal';
+import PollResultsModal from './PollResultsModal';
+import { listPolls } from '../utils/pollsApi';
+import { isPageUnanswered, markPageUnanswered, clearPageIfAllAnswered } from '../utils/unansweredIndicator';
+import { getVotes } from '../utils/reactions';
 
 const PresentationViewer = ({ lecture, onClose }) => {
   const [currentPage, setCurrentPage] = useState(0);
@@ -9,6 +14,38 @@ const PresentationViewer = ({ lecture, onClose }) => {
   const [numPages, setNumPages] = useState(null);
   const [studentData, setStudentData] = useState({});
   const [hoveredQuestion, setHoveredQuestion] = useState(null);
+  const [showPollModal, setShowPollModal] = useState(false);
+  const [showResults, setShowResults] = useState(null);
+  const [pollTimer, setPollTimer] = useState(null);
+  const [lastResultsPollId, setLastResultsPollId] = useState(null);
+  const [dismissedResultsId, setDismissedResultsId] = useState(null);
+  const [resultsDisabled, setResultsDisabled] = useState(false);
+  const [unansweredPages, setUnansweredPages] = useState(new Set());
+
+  const handleCloseResults = () => {
+    if (showResults?.id) {
+      try { localStorage.setItem(`poll_results_shown_${showResults.id}`, '1'); } catch {}
+      setDismissedResultsId(showResults.id);
+    }
+    try { localStorage.setItem('poll_results_disabled', '1'); } catch {}
+    setResultsDisabled(true);
+    setShowResults(null);
+  };
+
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem('poll_results_disabled');
+      if (v === '1') setResultsDisabled(true);
+    } catch {}
+  }, []);
+  const openLatestResults = async () => {
+    try {
+      const list = await listPolls({ lectureCode: lecture.accessCode });
+      if (list && list.length > 0) {
+        setShowResults(list[0]);
+      }
+    } catch {}
+  };
 
   // Poll for new student questions/comments every 2 seconds
   useEffect(() => {
@@ -23,12 +60,62 @@ const PresentationViewer = ({ lecture, onClose }) => {
     }
   }, [lecture.accessCode]);
 
+  useEffect(() => {
+    let timer;
+    const check = async () => {
+      try {
+        const list = await listPolls({ lectureCode: lecture.accessCode });
+        const active = (list || []).find(p => p.isActive);
+        if (active && active.endsAt) {
+          const endMs = new Date(active.endsAt).getTime();
+          const now = Date.now();
+          if (endMs > now) {
+            const secs = Math.ceil((endMs - now) / 1000);
+            setPollTimer(secs);
+          } else {
+            // Poll ended - clear timer permanently
+            if (pollTimer !== null) {
+              setPollTimer(null);
+            }
+            if (!resultsDisabled) {
+              // Only open once per poll id
+              const shownKey = `poll_results_shown_${active.id}`;
+              const alreadyShown = (() => { try { return localStorage.getItem(shownKey) === '1'; } catch { return false; } })();
+              if (!alreadyShown && lastResultsPollId !== active.id && dismissedResultsId !== active.id) {
+                setShowResults(active);
+                setLastResultsPollId(active.id);
+                try { localStorage.setItem(shownKey, '1'); } catch {}
+              }
+            }
+          }
+        } else {
+          if (pollTimer !== null) {
+            setPollTimer(null);
+          }
+        }
+      } catch {}
+      timer = setTimeout(check, 1000);
+    };
+    if (lecture.accessCode) check();
+    return () => clearTimeout(timer);
+  }, [lecture.accessCode, lastResultsPollId, dismissedResultsId, resultsDisabled, pollTimer]);
+
   const loadStudentData = () => {
     const savedData = localStorage.getItem(`lecture_${lecture.accessCode}_data`);
     if (savedData) {
       try {
         const parsedData = JSON.parse(savedData);
         setStudentData(parsedData);
+        // Update unanswered pages set in state for immediate re-render
+        const newSet = new Set();
+        Object.keys(parsedData).forEach(pageIdx => {
+          const pageIndex = parseInt(pageIdx);
+          if (parsedData[pageIndex]?.questions?.some(q => !q.acknowledged)) {
+            newSet.add(pageIndex);
+            markPageUnanswered(lecture.accessCode, pageIndex);
+          }
+        });
+        setUnansweredPages(newSet);
       } catch (error) {
         console.error('Error loading student data:', error);
       }
@@ -44,6 +131,17 @@ const PresentationViewer = ({ lecture, onClose }) => {
         updatedData[pageIndex].questions[questionIndex].acknowledged = true;
         setStudentData(updatedData);
         localStorage.setItem(`lecture_${lecture.accessCode}_data`, JSON.stringify(updatedData));
+        // Check if all questions on this page are now answered and clear the indicator
+        clearPageIfAllAnswered(lecture.accessCode, pageIndex, updatedData[pageIndex].questions);
+        // Update state to remove from unanswered set if all answered
+        const allAnswered = !updatedData[pageIndex].questions.some(q => !q.acknowledged);
+        if (allAnswered) {
+          setUnansweredPages(prev => {
+            const next = new Set(prev);
+            next.delete(pageIndex);
+            return next;
+          });
+        }
       }
     }
   };
@@ -168,6 +266,20 @@ const PresentationViewer = ({ lecture, onClose }) => {
   };
 
   const handleThumbnailClick = (pageIndex) => {
+    // Before navigating, immediately mark current page if it has unanswered questions
+    const current = studentData[currentPage];
+    if (current?.questions?.some(q => !q.acknowledged)) {
+      markPageUnanswered(lecture.accessCode, currentPage);
+      setUnansweredPages(prev => new Set(prev).add(currentPage));
+    } else {
+      clearPageIfAllAnswered(lecture.accessCode, currentPage, current?.questions || []);
+      setUnansweredPages(prev => {
+        const next = new Set(prev);
+        next.delete(currentPage);
+        return next;
+      });
+    }
+
     setCurrentPage(pageIndex);
     const pageElement = document.getElementById(`pdf-page-${pageIndex}`);
     if (pageElement) {
@@ -178,6 +290,19 @@ const PresentationViewer = ({ lecture, onClose }) => {
   const handlePrevious = () => {
     if (currentPage > 0) {
       const newPage = currentPage - 1;
+      // Immediately mark current page if it has unanswered questions
+      const current = studentData[currentPage];
+      if (current?.questions?.some(q => !q.acknowledged)) {
+        markPageUnanswered(lecture.accessCode, currentPage);
+        setUnansweredPages(prev => new Set(prev).add(currentPage));
+      } else {
+        clearPageIfAllAnswered(lecture.accessCode, currentPage, current?.questions || []);
+        setUnansweredPages(prev => {
+          const next = new Set(prev);
+          next.delete(currentPage);
+          return next;
+        });
+      }
       setCurrentPage(newPage);
       const pageElement = document.getElementById(`pdf-page-${newPage}`);
       if (pageElement) {
@@ -189,6 +314,19 @@ const PresentationViewer = ({ lecture, onClose }) => {
   const handleNext = () => {
     if (currentPage < pages.length - 1) {
       const newPage = currentPage + 1;
+      // Immediately mark current page if it has unanswered questions
+      const current = studentData[currentPage];
+      if (current?.questions?.some(q => !q.acknowledged)) {
+        markPageUnanswered(lecture.accessCode, currentPage);
+        setUnansweredPages(prev => new Set(prev).add(currentPage));
+      } else {
+        clearPageIfAllAnswered(lecture.accessCode, currentPage, current?.questions || []);
+        setUnansweredPages(prev => {
+          const next = new Set(prev);
+          next.delete(currentPage);
+          return next;
+        });
+      }
       setCurrentPage(newPage);
       const pageElement = document.getElementById(`pdf-page-${newPage}`);
       if (pageElement) {
@@ -276,16 +414,38 @@ const PresentationViewer = ({ lecture, onClose }) => {
   }
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: '#f5f5f5',
-      display: 'flex',
-      zIndex: 2000
-    }}>
+    <>
+      <style>
+        {`
+          #pdf-scroll-container::-webkit-scrollbar {
+            display: none;
+          }
+          #pdf-scroll-container {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+          /* Hide pagination dots */
+          ::-webkit-scrollbar-track,
+          ::-webkit-scrollbar-thumb {
+            display: none !important;
+          }
+          [class*="pagination"],
+          [class*="dot"],
+          [class*="indicator"] {
+            display: none !important;
+          }
+        `}
+      </style>
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: '#f5f5f5',
+        display: 'flex',
+        zIndex: 2000
+      }}>
       {/* Left Sidebar - Thumbnails */}
       <div style={{
         width: '200px',
@@ -355,6 +515,24 @@ const PresentationViewer = ({ lecture, onClose }) => {
                 ) : (
                   <span style={{ fontSize: '28px', fontWeight: 'bold' }}>PDF</span>
                 )}
+                {unansweredPages.has(index) && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    width: 18,
+                    height: 18,
+                    borderRadius: '50%',
+                    backgroundColor: '#e74c3c',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 12,
+                    fontWeight: 'bold',
+                    border: '1px solid #c0392b'
+                  }}>!</div>
+                )}
               </div>
               <div style={{
                 fontSize: '11px',
@@ -407,6 +585,25 @@ const PresentationViewer = ({ lecture, onClose }) => {
           </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button
+              onClick={() => setShowPollModal(true)}
+              style={{
+                backgroundColor: '#2ecc71',
+                color: 'white',
+                border: 'none',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '14px'
+              }}
+            >
+              Create Poll
+            </button>
+            {pollTimer != null && (
+              <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#FFD700', whiteSpace: 'nowrap' }}>
+                Poll ends in {Math.floor((pollTimer || 0) / 60)}:{String((pollTimer || 0) % 60).padStart(2, '0')}
+              </div>
+            )}
             <button
               onClick={handlePrevious}
               disabled={currentPage === 0}
@@ -474,9 +671,9 @@ const PresentationViewer = ({ lecture, onClose }) => {
             maxWidth: pages[currentPage]?.type === 'pdf' ? '950px' : '1000px',
             width: '100%',
             textAlign: 'left',
-            border: '2px solid #bdc3c7',
+            border: pages[currentPage]?.type === 'pdf' ? 'none' : '2px solid #bdc3c7',
             overflow: 'hidden',
-            height: pages[currentPage]?.type === 'pdf' ? 'calc(100vh - 100px)' : 'auto',
+            height: pages[currentPage]?.type === 'pdf' ? 'calc(100vh - 80px)' : 'auto',
             display: 'flex',
             flexDirection: 'column'
           }}>
@@ -491,10 +688,14 @@ const PresentationViewer = ({ lecture, onClose }) => {
                 fontFamily: pages[currentPage]?.type === 'text' ? 'monospace' : 'Arial, sans-serif',
                 flex: '1',
                 overflowY: 'auto',
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+                scrollSnapType: 'y mandatory',
+                scrollBehavior: 'smooth',
                 padding: pages[currentPage]?.type === 'pdf' ? '0' : '20px',
                 backgroundColor: '#fafafa',
-                borderRadius: '4px',
-                border: '1px solid #e0e0e0',
+                borderRadius: '0px',
+                border: 'none',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -509,22 +710,25 @@ const PresentationViewer = ({ lecture, onClose }) => {
                     id={`pdf-page-${index}`}
                     style={{
                       width: '100%',
-                      height: 'calc(100vh - 160px)',
-                      minHeight: 'calc(100vh - 160px)',
-                      maxHeight: 'calc(100vh - 160px)',
+                      height: '100%',
+                      minHeight: '100%',
+                      maxHeight: '100%',
                       display: 'flex',
                       justifyContent: 'center',
-                      alignItems: 'flex-start',
-                      flexShrink: 0
+                      alignItems: 'center',
+                      flexShrink: 0,
+                      scrollSnapAlign: 'start'
                     }}
                   >
                     <iframe
-                      src={`${fileUrl}#page=${page.pageNumber}&view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
+                      src={`${fileUrl}#page=${page.pageNumber}&view=FitV&toolbar=0&navpanes=0&scrollbar=0`}
                       style={{
                         width: '100%',
                         height: '100%',
+                        maxHeight: '100%',
+                        minHeight: '100%',
                         border: 'none',
-                        borderRadius: '4px',
+                        borderRadius: '0px',
                         pointerEvents: 'none'
                       }}
                       title={`PDF Page ${page.pageNumber}`}
@@ -537,34 +741,20 @@ const PresentationViewer = ({ lecture, onClose }) => {
               ) : null}
             </div>
 
+      {showPollModal && (
+        <PollModal
+          instructorId={(JSON.parse(localStorage.getItem('user')||'{}')._id) || 'instructor'}
+          lectureCode={lecture.accessCode}
+          onClose={() => setShowPollModal(false)}
+        />
+      )}
+      {showResults && (
+        <PollResultsModal poll={showResults} onClose={handleCloseResults} />
+      )}
+
           </div>
         </div>
 
-        {/* Footer Navigation */}
-        <div style={{
-          backgroundColor: '#ecf0f1',
-          padding: '15px 20px',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: '10px'
-        }}>
-          {pages.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => handleThumbnailClick(index)}
-              style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                border: 'none',
-                backgroundColor: currentPage === index ? '#3498db' : '#bdc3c7',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s ease'
-              }}
-            />
-          ))}
-        </div>
       </div>
 
       {/* Right Sidebar - Student Questions & Comments */}
@@ -622,9 +812,15 @@ const PresentationViewer = ({ lecture, onClose }) => {
                 <div style={{
                   fontSize: '11px',
                   color: '#888',
-                  textAlign: 'right'
+                  textAlign: 'right',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
                 }}>
-                  {question.timestamp}
+                  <span>{question.timestamp}</span>
+                  <span style={{ fontSize: 12, color: '#3498db', fontWeight: 'bold' }}>
+                    👍 {getVotes(lecture.accessCode, 'question', question.id)}
+                  </span>
                 </div>
                 
                 {hoveredQuestion === question.id && !question.acknowledged && (
@@ -713,9 +909,15 @@ const PresentationViewer = ({ lecture, onClose }) => {
                 <div style={{
                   fontSize: '11px',
                   color: '#888',
-                  textAlign: 'right'
+                  textAlign: 'right',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
                 }}>
-                  {comment.timestamp}
+                  <span>{comment.timestamp}</span>
+                  <span style={{ fontSize: 12, color: '#3498db', fontWeight: 'bold' }}>
+                    👍 {getVotes(lecture.accessCode, 'comment', comment.id)}
+                  </span>
                 </div>
               </div>
             ))
@@ -732,6 +934,7 @@ const PresentationViewer = ({ lecture, onClose }) => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { saveFile as idbSaveFile, getFile as idbGetFile, deleteFile as idbDeleteFile } from '../utils/idbFileStorage';
 import { useNavigate } from 'react-router-dom';
 import PresentationViewer from './PresentationViewer';
 
@@ -31,24 +32,38 @@ const ProfessorHomePage = () => {
     if (savedLectures) {
       try {
         const lecturesData = JSON.parse(savedLectures);
-        // Convert base64 back to File objects for preview
+        // Prefer files from IndexedDB; migrate legacy base64 to IDB if found
         const lecturesWithFiles = await Promise.all(
-          lecturesData.map(async (lecture) => {
-            if (lecture.fileData) {
-              const byteString = atob(lecture.fileData);
-              const ab = new ArrayBuffer(byteString.length);
-              const ia = new Uint8Array(ab);
-              for (let i = 0; i < byteString.length; i++) {
-                ia[i] = byteString.charCodeAt(i);
-              }
-              const blob = new Blob([ab], { type: lecture.fileType || 'application/pdf' });
-              const file = new File([blob], lecture.originalName, { type: lecture.fileType || 'application/pdf' });
-              return { ...lecture, file };
+          (lecturesData || []).map(async (lecture) => {
+            let file = await idbGetFile(`lecture_file_${lecture.id}`);
+            if (!file && lecture.fileData) {
+              try {
+                const byteString = atob(lecture.fileData);
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                for (let i = 0; i < byteString.length; i++) {
+                  ia[i] = byteString.charCodeAt(i);
+                }
+                const blob = new Blob([ab], { type: lecture.fileType || 'application/pdf' });
+                file = new File([blob], lecture.originalName, { type: lecture.fileType || 'application/pdf' });
+                await idbSaveFile(`lecture_file_${lecture.id}`, file);
+              } catch {}
             }
-            return lecture;
+            return { ...lecture, file };
           })
         );
         setLectures(lecturesWithFiles);
+        // Save back sanitized metadata (no base64) to reduce localStorage usage
+        const user = JSON.parse(userData);
+        const sanitized = lecturesWithFiles.map((l) => ({
+          id: l.id,
+          originalName: l.originalName,
+          uploadDate: l.uploadDate,
+          size: l.size,
+          fileType: l.fileType,
+          accessCode: l.accessCode
+        }));
+        localStorage.setItem(`lectures_${user._id || user.username}`, JSON.stringify(sanitized));
       } catch (error) {
         console.error('Error loading lectures:', error);
         setLectures([]);
@@ -135,11 +150,13 @@ const ProfessorHomePage = () => {
             originalName: lecture.originalName,
             uploadDate: lecture.uploadDate,
             size: lecture.size,
-            fileData: lecture.fileData,
             fileType: lecture.fileType,
             accessCode: lecture.accessCode
           }));
+          // Save only metadata to localStorage; store file blob in IndexedDB to avoid quota issues
           localStorage.setItem(`lectures_${user._id || user.username}`, JSON.stringify(lecturesToSave));
+          // Write files to IDB using a per-lecture key
+          await Promise.all(updatedLectures.map(lec => lec.file ? idbSaveFile(`lecture_file_${lec.id}`, lec.file) : Promise.resolve(true)));
         }
         
         setShowUploadModal(false);
@@ -203,11 +220,12 @@ const ProfessorHomePage = () => {
           originalName: lecture.originalName,
           uploadDate: lecture.uploadDate,
           size: lecture.size,
-          fileData: lecture.fileData,
           fileType: lecture.fileType,
           accessCode: lecture.accessCode
         }));
         localStorage.setItem(`lectures_${user._id || user.username}`, JSON.stringify(lecturesToSave));
+        // Remove blob from IDB for the deleted lecture
+        idbDeleteFile(`lecture_file_${lectureToDelete.id}`).catch(() => {});
       }
       
       setLectureToDelete(null);

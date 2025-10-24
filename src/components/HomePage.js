@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoginModal from './LoginModal';
 import StudentViewer from './StudentViewer';
+import { getFile as idbGetFile } from '../utils/idbFileStorage';
 
 const HomePage = () => {
   const [code, setCode] = useState('');
@@ -10,10 +11,10 @@ const HomePage = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleCodeSubmit = (e) => {
+  const handleCodeSubmit = async (e) => {
     e.preventDefault();
     if (code.trim()) {
-      const lecture = findLectureByCode(code.trim().toUpperCase());
+      const lecture = await findLectureByCode(code.trim().toUpperCase());
       if (lecture) {
         setFoundLecture(lecture);
         setError('');
@@ -25,7 +26,7 @@ const HomePage = () => {
   };
 
   // Search all professor's localStorage for a lecture matching the access code
-  const findLectureByCode = (accessCode) => {
+  const findLectureByCode = async (accessCode) => {
     const allUsers = Object.keys(localStorage).filter(key => key.startsWith('lectures_'));
     
     for (const userKey of allUsers) {
@@ -36,17 +37,29 @@ const HomePage = () => {
           const foundLecture = lectures.find(lecture => lecture.accessCode === accessCode);
           
           if (foundLecture) {
-            // Reconstruct File object from base64 data for viewing
-            const byteString = atob(foundLecture.fileData);
-            const ab = new ArrayBuffer(byteString.length);
-            const ia = new Uint8Array(ab);
-            for (let i = 0; i < byteString.length; i++) {
-              ia[i] = byteString.charCodeAt(i);
+            // Prefer fetching File blob from IndexedDB (new storage)
+            try {
+              const fileFromIDB = await idbGetFile(`lecture_file_${foundLecture.id}`);
+              if (fileFromIDB) {
+                return { ...foundLecture, file: fileFromIDB };
+              }
+            } catch {}
+
+            // Back-compat: reconstruct File object from legacy base64 if present
+            if (foundLecture.fileData) {
+              const byteString = atob(foundLecture.fileData);
+              const ab = new ArrayBuffer(byteString.length);
+              const ia = new Uint8Array(ab);
+              for (let i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+              }
+              const blob = new Blob([ab], { type: foundLecture.fileType || 'application/pdf' });
+              const file = new File([blob], foundLecture.originalName, { type: foundLecture.fileType || 'application/pdf' });
+              return { ...foundLecture, file };
             }
-            const blob = new Blob([ab], { type: foundLecture.fileType || 'application/pdf' });
-            const file = new File([blob], foundLecture.originalName, { type: foundLecture.fileType || 'application/pdf' });
-            
-            return { ...foundLecture, file };
+
+            // If no file is available, still return lecture metadata (viewer will show placeholder)
+            return { ...foundLecture };
           }
         } catch (error) {
           console.error('Error parsing lecture data:', error);

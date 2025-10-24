@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import StudentPollPopup from './StudentPollPopup';
+import { listPolls } from '../utils/pollsApi';
+import { toggleVote, getVotes } from '../utils/reactions';
 
 const StudentViewer = ({ lecture, onClose }) => {
   const [currentPage, setCurrentPage] = useState(0);
@@ -10,13 +13,17 @@ const StudentViewer = ({ lecture, onClose }) => {
   const [comment, setComment] = useState('');
   const [studentData, setStudentData] = useState({});
   const [postSuccess, setPostSuccess] = useState('');
+  const [activePoll, setActivePoll] = useState(null);
+  const [voteRefresh, setVoteRefresh] = useState(0);
 
   useEffect(() => {
     loadFileContent();
     loadStudentData();
+    pollForActivePoll();
     
     const interval = setInterval(() => {
       loadStudentData();
+      pollForActivePoll();
     }, 3000);
     
     return () => {
@@ -26,6 +33,19 @@ const StudentViewer = ({ lecture, onClose }) => {
       clearInterval(interval);
     };
   }, [lecture]);
+
+  const pollForActivePoll = async () => {
+    try {
+      const list = await listPolls({ lectureCode: lecture.accessCode });
+      const active = (list || []).find(p => p.isActive);
+      if (active) {
+        const voted = localStorage.getItem(`poll_voted_${active.id}`) === '1';
+        setActivePoll(voted ? null : active);
+      } else {
+        setActivePoll(null);
+      }
+    } catch {}
+  };
 
   const loadStudentData = () => {
     const savedData = localStorage.getItem(`lecture_${lecture.accessCode}_data`);
@@ -249,17 +269,17 @@ const StudentViewer = ({ lecture, onClose }) => {
   }
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: '#f5f5f5',
-      display: 'flex',
-      flexDirection: 'column',
-      zIndex: 2000
-    }}>
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: '#f5f5f5',
+        display: 'flex',
+        flexDirection: 'column',
+        zIndex: 2000
+      }}>
       {/* Top Header with Access Code */}
       <div style={{
         backgroundColor: '#0066CC',
@@ -342,7 +362,7 @@ const StudentViewer = ({ lecture, onClose }) => {
               }}>
                 {page.type === 'pdf' && fileUrl ? (
                   <iframe
-                    src={`${fileUrl}#page=${page.pageNumber}&view=FitV&toolbar=0&navpanes=0&scrollbar=0`}
+                    src={`${fileUrl}#page=${page.pageNumber}&view=FitV&zoom=110&toolbar=0&navpanes=0&scrollbar=0`}
                     style={{
                       width: '220px',
                       height: '280px',
@@ -373,10 +393,26 @@ const StudentViewer = ({ lecture, onClose }) => {
       <div style={{
         flex: 1,
         display: 'flex',
-        flexDirection: 'column',
-        backgroundColor: 'white',
-        border: '2px solid black'
+        alignItems: 'flex-start',
+        justifyContent: 'center',
+        padding: '20px',
+        paddingTop: '10px',
+        backgroundColor: '#ecf0f1'
       }}>
+        <div style={{
+          backgroundColor: 'white',
+          padding: '10px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          maxWidth: '950px',
+          width: '100%',
+          textAlign: 'left',
+          border: 'none',
+          overflow: 'hidden',
+          height: 'calc(100vh - 80px)',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
         {/* Header with Page Info */}
         <div style={{
           backgroundColor: '#f0f0f0',
@@ -404,11 +440,15 @@ const StudentViewer = ({ lecture, onClose }) => {
           style={{
             flex: 1,
             overflowY: 'auto',
-            padding: '0',
+            padding: 0,
             backgroundColor: '#fafafa',
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'center'
+            alignItems: 'center',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            scrollSnapType: 'y mandatory',
+            scrollBehavior: 'smooth'
           }}
           onScroll={pages[0]?.type === 'pdf' ? handleScroll : undefined}
         >
@@ -419,21 +459,25 @@ const StudentViewer = ({ lecture, onClose }) => {
                 id={`student-pdf-page-${index}`}
                 style={{
                   width: '100%',
-                  minHeight: '100vh',
+                  height: '100%',
+                  minHeight: '100%',
+                  maxHeight: '100%',
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
                   flexShrink: 0,
-                  padding: '20px 0'
+                  scrollSnapAlign: 'start'
                 }}
               >
                 <iframe
-                  src={`${fileUrl}#page=${page.pageNumber}&view=Fit&toolbar=0&navpanes=0&scrollbar=0`}
+                  src={`${fileUrl}#page=${page.pageNumber}&view=FitV&toolbar=0&navpanes=0&scrollbar=0`}
                   style={{
-                    width: '95%',
-                    height: '95vh',
+                    width: '100%',
+                    height: '100%',
+                    maxHeight: '100%',
+                    minHeight: '100%',
                     border: 'none',
-                    borderRadius: '4px',
+                    borderRadius: '0px',
                     pointerEvents: 'none'
                   }}
                   title={`PDF Page ${page.pageNumber}`}
@@ -452,7 +496,7 @@ const StudentViewer = ({ lecture, onClose }) => {
         <div style={{
           backgroundColor: '#f0f0f0',
           padding: '15px',
-          borderTop: '2px solid black',
+          borderTop: '2px solid #ddd',
           display: 'flex',
           flexDirection: 'column',
           gap: '10px'
@@ -542,6 +586,7 @@ const StudentViewer = ({ lecture, onClose }) => {
           </button>
           </div>
         </div>
+        </div>
       </div>
 
         {/* Right Sidebar - Student Questions & Comments */}
@@ -599,18 +644,15 @@ const StudentViewer = ({ lecture, onClose }) => {
                   alignItems: 'center'
                 }}>
                   <span>{question.timestamp}</span>
-                  {question.acknowledged && (
-                    <span style={{
-                      backgroundColor: '#4CAF50',
-                      color: 'white',
-                      padding: '2px 6px',
-                      borderRadius: '10px',
-                      fontSize: '10px',
-                      fontWeight: 'bold'
-                    }}>
-                      Answered
-                    </span>
-                  )}
+                  <button
+                    onClick={() => {
+                      toggleVote(lecture.accessCode, 'question', question.id, 'student');
+                      setVoteRefresh(v => v + 1);
+                    }}
+                    style={{ background: '#fff', border: '1px solid #3498db', color: '#3498db', padding: '2px 8px', borderRadius: 12, cursor: 'pointer', fontSize: 12 }}
+                  >
+                    👍 {getVotes(lecture.accessCode, 'question', question.id)}
+                  </button>
                 </div>
               </div>
             ))
@@ -662,12 +704,17 @@ const StudentViewer = ({ lecture, onClose }) => {
                 }}>
                   {comment.text}
                 </div>
-                <div style={{
-                  fontSize: '11px',
-                  color: '#888',
-                  textAlign: 'right'
-                }}>
-                  {comment.timestamp}
+                <div style={{ fontSize: '11px', color: '#888', textAlign: 'right', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>{comment.timestamp}</span>
+                  <button
+                    onClick={() => {
+                      toggleVote(lecture.accessCode, 'comment', comment.id, 'student');
+                      setVoteRefresh(v => v + 1);
+                    }}
+                    style={{ background: '#fff', border: '1px solid #3498db', color: '#3498db', padding: '2px 8px', borderRadius: 12, cursor: 'pointer', fontSize: 12 }}
+                  >
+                    👍 {getVotes(lecture.accessCode, 'comment', comment.id)}
+                  </button>
                 </div>
               </div>
             ))
@@ -684,6 +731,9 @@ const StudentViewer = ({ lecture, onClose }) => {
         </div>
       </div>
       </div>
+      {activePoll && (
+        <StudentPollPopup poll={activePoll} onClose={() => setActivePoll(null)} />
+      )}
     </div>
   );
 };
