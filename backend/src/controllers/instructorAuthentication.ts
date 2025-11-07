@@ -35,11 +35,13 @@ export const login = async (req: express.Request, res: express.Response) => {
 
     await instructor.save();
 
+    const isProduction = process.env.NODE_ENV === 'production' || req.get('host')?.includes('kinneyan.com');
     res.cookie("LECTURELINK-AUTH", instructor.authentication.sessionToken, {
-      domain: "localhost",
+      domain: isProduction ? '.kinneyan.com' : 'localhost',
       path: "/",
       httpOnly: true,
-      sameSite: 'lax'
+      sameSite: isProduction ? 'none' : 'lax',
+      secure: isProduction
     });
 
     return res.status(200).json(instructor).end();
@@ -77,11 +79,13 @@ export const register = async (req: express.Request, res: express.Response) => {
     instructor.authentication.sessionToken = sessionToken;
     await instructor.save();
 
+    const isProduction = process.env.NODE_ENV === 'production' || req.get('host')?.includes('kinneyan.com');
     res.cookie("LECTURELINK-AUTH", sessionToken, {
-      domain: "localhost",
+      domain: isProduction ? '.kinneyan.com' : 'localhost',
       path: "/",
       httpOnly: true,
-      sameSite: 'lax'
+      sameSite: isProduction ? 'none' : 'lax',
+      secure: isProduction
     });
 
     return res.status(200).json(instructor).end();
