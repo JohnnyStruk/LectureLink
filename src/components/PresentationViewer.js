@@ -100,49 +100,68 @@ const PresentationViewer = ({ lecture, onClose }) => {
     return () => clearTimeout(timer);
   }, [lecture.accessCode, lastResultsPollId, dismissedResultsId, resultsDisabled, pollTimer]);
 
-  const loadStudentData = () => {
-    const savedData = localStorage.getItem(`lecture_${lecture.accessCode}_data`);
-    if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData);
-        setStudentData(parsedData);
-        // Update unanswered pages set in state for immediate re-render
+  const loadStudentData = async () => {
+    try {
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || window.location.origin;
+      const response = await fetch(`${API_BASE_URL}/lectures/${lecture.accessCode}/comments`);
+      if (response.ok) {
+        const comments = await response.json();
+        // Group by page
+        const grouped = {};
+        comments.forEach(c => {
+          if (!grouped[c.page]) grouped[c.page] = { questions: [], comments: [] };
+          if (c.isQuestion) {
+            grouped[c.page].questions.push({ id: c._id, text: c.content, timestamp: new Date(c.createdAt).toLocaleTimeString(), acknowledged: c.viewed, votes: c.votes || 0 });
+          } else {
+            grouped[c.page].comments.push({ id: c._id, text: c.content, timestamp: new Date(c.createdAt).toLocaleTimeString(), votes: c.votes || 0 });
+          }
+        });
+        setStudentData(grouped);
+        
+        // Update unanswered pages
         const newSet = new Set();
-        Object.keys(parsedData).forEach(pageIdx => {
+        Object.keys(grouped).forEach(pageIdx => {
           const pageIndex = parseInt(pageIdx);
-          if (parsedData[pageIndex]?.questions?.some(q => !q.acknowledged)) {
+          if (grouped[pageIndex]?.questions?.some(q => !q.acknowledged)) {
             newSet.add(pageIndex);
             markPageUnanswered(lecture.accessCode, pageIndex);
           }
         });
         setUnansweredPages(newSet);
-      } catch (error) {
-        console.error('Error loading student data:', error);
       }
+    } catch (error) {
+      console.error('Error loading comments from server:', error);
     }
   };
 
-  // Mark question as acknowledged (changes from red to blue for students)
-  const handleAcknowledgeQuestion = (questionId, pageIndex) => {
-    const updatedData = { ...studentData };
-    if (updatedData[pageIndex] && updatedData[pageIndex].questions) {
-      const questionIndex = updatedData[pageIndex].questions.findIndex(q => q.id === questionId);
-      if (questionIndex !== -1) {
-        updatedData[pageIndex].questions[questionIndex].acknowledged = true;
-        setStudentData(updatedData);
-        localStorage.setItem(`lecture_${lecture.accessCode}_data`, JSON.stringify(updatedData));
-        // Check if all questions on this page are now answered and clear the indicator
-        clearPageIfAllAnswered(lecture.accessCode, pageIndex, updatedData[pageIndex].questions);
-        // Update state to remove from unanswered set if all answered
-        const allAnswered = !updatedData[pageIndex].questions.some(q => !q.acknowledged);
-        if (allAnswered) {
-          setUnansweredPages(prev => {
-            const next = new Set(prev);
-            next.delete(pageIndex);
-            return next;
-          });
+  // Mark question as acknowledged
+  const handleAcknowledgeQuestion = async (questionId, pageIndex) => {
+    try {
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || window.location.origin;
+      const response = await fetch(`${API_BASE_URL}/comments/toggle-viewed/${questionId}`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        // Reload data to reflect changes
+        await loadStudentData();
+        // Check if all questions on this page are now answered
+        const updatedData = studentData;
+        if (updatedData[pageIndex]) {
+          const allAnswered = !updatedData[pageIndex].questions?.some(q => !q.acknowledged);
+          if (allAnswered) {
+            clearPageIfAllAnswered(lecture.accessCode, pageIndex, updatedData[pageIndex].questions);
+            setUnansweredPages(prev => {
+              const next = new Set(prev);
+              next.delete(pageIndex);
+              return next;
+            });
+          }
         }
       }
+    } catch (error) {
+      console.error('Error acknowledging question:', error);
     }
   };
 
@@ -819,7 +838,7 @@ const PresentationViewer = ({ lecture, onClose }) => {
                 }}>
                   <span>{question.timestamp}</span>
                   <span style={{ fontSize: 12, color: '#3498db', fontWeight: 'bold' }}>
-                    👍 {getVotes(lecture.accessCode, 'question', question.id)}
+                    👍 {question.votes || 0}
                   </span>
                 </div>
                 
@@ -916,7 +935,7 @@ const PresentationViewer = ({ lecture, onClose }) => {
                 }}>
                   <span>{comment.timestamp}</span>
                   <span style={{ fontSize: 12, color: '#3498db', fontWeight: 'bold' }}>
-                    👍 {getVotes(lecture.accessCode, 'comment', comment.id)}
+                    👍 {comment.votes || 0}
                   </span>
                 </div>
               </div>

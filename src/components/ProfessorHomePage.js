@@ -14,6 +14,10 @@ const ProfessorHomePage = () => {
   const [lectureToDelete, setLectureToDelete] = useState(null);
   const navigate = useNavigate();
 
+  const API_BASE_URL =
+    process.env.REACT_APP_API_BASE_URL ||
+    (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8080');
+
   useEffect(() => {
     fetchMyLectures();
   }, []);
@@ -83,8 +87,36 @@ const ProfessorHomePage = () => {
     return code;
   };
 
-  // Convert file to base64 for localStorage storage
+  // Upload to backend; fallback to local base64 metadata
   const uploadFileToServer = async (file) => {
+    try {
+      const form = new FormData();
+      form.append('pdf', file);
+      const res = await fetch(`${API_BASE_URL}/posts/upload`, {
+        method: 'POST',
+        body: form,
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const f = data?.file || {};
+        return {
+          file: {
+            id: f.id || f._id,
+            originalName: f.originalName || file.name,
+            uploadDate: f.uploadDate || new Date().toISOString(),
+            size: f.size || file.size,
+            fileType: f.mimeType || file.type,
+            accessCode: f.code,
+            // Keep local file for IDB storage
+            fileData: undefined
+          }
+        };
+      }
+    } catch (_) {
+      // ignore and fallback
+    }
+    // Fallback to local-only metadata with random code
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {

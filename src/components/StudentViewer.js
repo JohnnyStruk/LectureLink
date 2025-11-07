@@ -47,10 +47,26 @@ const StudentViewer = ({ lecture, onClose }) => {
     } catch {}
   };
 
-  const loadStudentData = () => {
-    const savedData = localStorage.getItem(`lecture_${lecture.accessCode}_data`);
-    if (savedData) {
-      setStudentData(JSON.parse(savedData));
+  const loadStudentData = async () => {
+    try {
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || window.location.origin;
+      const response = await fetch(`${API_BASE_URL}/lectures/${lecture.accessCode}/comments`);
+      if (response.ok) {
+        const comments = await response.json();
+        // Group by page
+        const grouped = {};
+        comments.forEach(c => {
+          if (!grouped[c.page]) grouped[c.page] = { questions: [], comments: [] };
+          if (c.isQuestion) {
+            grouped[c.page].questions.push({ id: c._id, text: c.content, timestamp: new Date(c.createdAt).toLocaleTimeString(), acknowledged: c.viewed, votes: c.votes || 0 });
+          } else {
+            grouped[c.page].comments.push({ id: c._id, text: c.content, timestamp: new Date(c.createdAt).toLocaleTimeString(), votes: c.votes || 0 });
+          }
+        });
+        setStudentData(grouped);
+      }
+    } catch (error) {
+      console.error('Error loading comments from server:', error);
     }
   };
 
@@ -166,56 +182,67 @@ const StudentViewer = ({ lecture, onClose }) => {
     }
   };
 
-  // Post question to current page and save to localStorage
-  const handlePostQuestion = () => {
+  // Post question to backend
+  const handlePostQuestion = async () => {
     if (!question.trim()) return;
 
-    const newQuestion = {
-      id: Date.now(),
-      text: question,
-      timestamp: new Date().toLocaleTimeString(),
-      page: currentPage,
-      acknowledged: false // Will be marked true when professor acknowledges
-    };
+    try {
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || window.location.origin;
+      const response = await fetch(`${API_BASE_URL}/comments/post`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          content: question,
+          isQuestion: true,
+          page: currentPage,
+          lectureCode: lecture.accessCode
+        })
+      });
 
-    const updatedData = { ...studentData };
-    if (!updatedData[currentPage]) {
-      updatedData[currentPage] = { questions: [], comments: [] };
+      if (response.ok) {
+        setQuestion('');
+        setComment('');
+        setPostSuccess('Question posted successfully!');
+        setTimeout(() => setPostSuccess(''), 3000);
+        loadStudentData(); // Reload to show new question
+      } else {
+        console.error('Failed to post question');
+      }
+    } catch (error) {
+      console.error('Error posting question:', error);
     }
-    updatedData[currentPage].questions.push(newQuestion);
-    
-    setStudentData(updatedData);
-    localStorage.setItem(`lecture_${lecture.accessCode}_data`, JSON.stringify(updatedData));
-    setQuestion('');
-    setComment('');
-    
-    setPostSuccess('Question posted successfully!');
-    setTimeout(() => setPostSuccess(''), 3000);
   };
 
-  const handlePostComment = () => {
+  const handlePostComment = async () => {
     if (!comment.trim()) return;
 
-    const newComment = {
-      id: Date.now(),
-      text: comment,
-      timestamp: new Date().toLocaleTimeString(),
-      page: currentPage
-    };
+    try {
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || window.location.origin;
+      const response = await fetch(`${API_BASE_URL}/comments/post`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          content: comment,
+          isQuestion: false,
+          page: currentPage,
+          lectureCode: lecture.accessCode
+        })
+      });
 
-    const updatedData = { ...studentData };
-    if (!updatedData[currentPage]) {
-      updatedData[currentPage] = { questions: [], comments: [] };
+      if (response.ok) {
+        setQuestion('');
+        setComment('');
+        setPostSuccess('Comment posted successfully!');
+        setTimeout(() => setPostSuccess(''), 3000);
+        loadStudentData(); // Reload to show new comment
+      } else {
+        console.error('Failed to post comment');
+      }
+    } catch (error) {
+      console.error('Error posting comment:', error);
     }
-    updatedData[currentPage].comments.push(newComment);
-    
-    setStudentData(updatedData);
-    localStorage.setItem(`lecture_${lecture.accessCode}_data`, JSON.stringify(updatedData));
-    setQuestion('');
-    setComment('');
-    
-    setPostSuccess('Comment posted successfully!');
-    setTimeout(() => setPostSuccess(''), 3000);
   };
 
   useEffect(() => {
@@ -645,13 +672,21 @@ const StudentViewer = ({ lecture, onClose }) => {
                 }}>
                   <span>{question.timestamp}</span>
                   <button
-                    onClick={() => {
-                      toggleVote(lecture.accessCode, 'question', question.id, 'student');
-                      setVoteRefresh(v => v + 1);
+                    onClick={async () => {
+                      try {
+                        const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || window.location.origin;
+                        await fetch(`${API_BASE_URL}/comments/vote/${question.id}`, {
+                          method: 'POST',
+                          credentials: 'include'
+                        });
+                        await loadStudentData();
+                      } catch (error) {
+                        console.error('Error voting:', error);
+                      }
                     }}
                     style={{ background: '#fff', border: '1px solid #3498db', color: '#3498db', padding: '2px 8px', borderRadius: 12, cursor: 'pointer', fontSize: 12 }}
                   >
-                    👍 {getVotes(lecture.accessCode, 'question', question.id)}
+                    👍 {question.votes || 0}
                   </button>
                 </div>
               </div>
@@ -707,13 +742,21 @@ const StudentViewer = ({ lecture, onClose }) => {
                 <div style={{ fontSize: '11px', color: '#888', textAlign: 'right', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>{comment.timestamp}</span>
                   <button
-                    onClick={() => {
-                      toggleVote(lecture.accessCode, 'comment', comment.id, 'student');
-                      setVoteRefresh(v => v + 1);
+                    onClick={async () => {
+                      try {
+                        const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || window.location.origin;
+                        await fetch(`${API_BASE_URL}/comments/vote/${comment.id}`, {
+                          method: 'POST',
+                          credentials: 'include'
+                        });
+                        await loadStudentData();
+                      } catch (error) {
+                        console.error('Error voting:', error);
+                      }
                     }}
                     style={{ background: '#fff', border: '1px solid #3498db', color: '#3498db', padding: '2px 8px', borderRadius: 12, cursor: 'pointer', fontSize: 12 }}
                   >
-                    👍 {getVotes(lecture.accessCode, 'comment', comment.id)}
+                    👍 {comment.votes || 0}
                   </button>
                 </div>
               </div>

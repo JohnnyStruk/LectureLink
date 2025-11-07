@@ -10,10 +10,20 @@ const HomePage = () => {
   const [foundLecture, setFoundLecture] = useState(null);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const API_BASE_URL =
+    process.env.REACT_APP_API_BASE_URL ||
+    (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8080');
+  // Debug: show which API base the app will use
+  if (typeof window !== 'undefined') {
+    // eslint-disable-next-line no-console
+    console.log('API_BASE_URL resolved to:', API_BASE_URL);
+  }
 
   const handleCodeSubmit = async (e) => {
     e.preventDefault();
     if (code.trim()) {
+      // eslint-disable-next-line no-console
+      console.log('Join submit with code:', code.trim().toUpperCase());
       const lecture = await findLectureByCode(code.trim().toUpperCase());
       if (lecture) {
         setFoundLecture(lecture);
@@ -25,8 +35,51 @@ const HomePage = () => {
     }
   };
 
-  // Search all professor's localStorage for a lecture matching the access code
+  // Look up lecture by access code (server first, then local fallback)
   const findLectureByCode = async (accessCode) => {
+    try {
+      const url = `${API_BASE_URL}/posts/code/${encodeURIComponent(accessCode)}`;
+      // eslint-disable-next-line no-console
+      console.log('Fetching lecture by code from server:', url);
+      const res = await fetch(url, {
+        credentials: 'include'
+      });
+      // eslint-disable-next-line no-console
+      console.log('Server code lookup status:', res.status);
+      if (res.ok) {
+        const meta = await res.json();
+        if (meta && (meta._id || meta.id)) {
+          const fileId = meta._id || meta.id;
+          const viewUrl = `${API_BASE_URL}/posts/view/${encodeURIComponent(fileId)}`;
+          // eslint-disable-next-line no-console
+          console.log('Fetching lecture PDF:', viewUrl);
+          const viewRes = await fetch(viewUrl, {
+            credentials: 'include'
+          });
+          // eslint-disable-next-line no-console
+          console.log('PDF fetch status:', viewRes.status);
+          if (viewRes.ok) {
+            const blob = await viewRes.blob();
+            const file = new File([blob], meta.originalName || 'lecture.pdf', { type: meta.mimeType || 'application/pdf' });
+            return {
+              id: fileId,
+              originalName: meta.originalName || 'Lecture',
+              uploadDate: meta.uploadDate,
+              size: meta.size,
+              fileType: meta.mimeType || 'application/pdf',
+              accessCode: accessCode,
+              file
+            };
+          }
+        }
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('Server code lookup failed, falling back to local search.', e);
+      // fall through to local lookup
+    }
+
+    // Fallback: search localStorage on this device (dev/offline)
     const allUsers = Object.keys(localStorage).filter(key => key.startsWith('lectures_'));
     
     for (const userKey of allUsers) {

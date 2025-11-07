@@ -33,23 +33,28 @@ export const isAuthenticated = async (
   next: express.NextFunction
 ) => {
   try {
+    console.log('Auth check - All cookies:', req.cookies);
     const sessionToken = req.cookies["LECTURELINK-AUTH"];
+    console.log('Auth check - Session token:', sessionToken ? 'Present' : 'Missing');
 
     if (!sessionToken) {
+      console.log('Auth failed: No session token');
       return res.sendStatus(403);
     }
 
     const existingInstructor = await getInstructorBySessionToken(sessionToken);
 
     if (!existingInstructor) {
+      console.log('Auth failed: Invalid session token');
       return res.sendStatus(403);
     }
 
+    console.log('Auth success for instructor:', existingInstructor.username);
     merge(req, { identity: existingInstructor });
 
     return next();
   } catch (error) {
-    console.log(error);
+    console.log('Auth error:', error);
     return res.sendStatus(400);
   }
 };

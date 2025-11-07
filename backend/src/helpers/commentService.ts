@@ -5,16 +5,30 @@ import { List } from 'lodash';
 
 export class CommentService {
     async createComment(values: Record<string, any>): Promise<IComment> {
-        const _post = await Post.findById(values["postId"]);
+        let postId = values["postId"];
+        
+        // If lectureCode provided instead of postId, look it up
+        if (!postId && values["lectureCode"]) {
+            const post = await Post.findOne({ code: values["lectureCode"] });
+            if (post) {
+                postId = post._id;
+            }
+        }
 
-        const newComment = new Comment({
-          isQuestion: values["isQuestion"],
-          content: values["content"],
-          page: values["page"],
-          postId: _post._id,     
-        });
-
-        return await newComment.save();
+        if (postId) {
+            const _post = await Post.findById(postId);
+            if (_post) {
+                const newComment = new Comment({
+                  isQuestion: values["isQuestion"],
+                  content: values["content"],
+                  page: values["page"],
+                  postId: _post._id,     
+                });
+                return await newComment.save();
+            }
+        }
+        
+        throw new Error('Post not found');
     };
 
     async getCommentsByPost(postId: string): Promise<IComment[]> {
@@ -48,5 +62,14 @@ export class CommentService {
 
     async getById(id: string): Promise<IComment> {
         return await Comment.findById(id);
+    };
+
+    async getCommentsByLectureCode(lectureCode: string): Promise<IComment[]> {
+        const post = await Post.findOne({ code: lectureCode });
+        if (!post) {
+            return [];
+        }
+        const comments = await Comment.find({ postId: post._id });
+        return comments;
     };
 }

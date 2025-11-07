@@ -38,6 +38,8 @@ export const login = async (req: express.Request, res: express.Response) => {
     res.cookie("LECTURELINK-AUTH", instructor.authentication.sessionToken, {
       domain: "localhost",
       path: "/",
+      httpOnly: true,
+      sameSite: 'lax'
     });
 
     return res.status(200).json(instructor).end();
@@ -62,12 +64,24 @@ export const register = async (req: express.Request, res: express.Response) => {
     }
 
     const salt = random();
-    const instructor = await createInstructor({
+    const newInstructor = await createInstructor({
       username,
       authentication: {
         salt,
         password: authentication(salt, password),
       },
+    });
+
+    const sessionToken = authentication(random(), newInstructor._id.toString());
+    const instructor = await getInstructorByUserName(username);
+    instructor.authentication.sessionToken = sessionToken;
+    await instructor.save();
+
+    res.cookie("LECTURELINK-AUTH", sessionToken, {
+      domain: "localhost",
+      path: "/",
+      httpOnly: true,
+      sameSite: 'lax'
     });
 
     return res.status(200).json(instructor).end();

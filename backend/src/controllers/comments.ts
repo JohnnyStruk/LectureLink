@@ -71,4 +71,14 @@ export class CommentController {
             return res.sendStatus(400);
         }
     };
+
+    async getCommentsByLectureCode(req: express.Request, res: express.Response) {
+        try {
+            const comments = await commentService.getCommentsByLectureCode(req.params.lectureCode);
+            res.status(200).json(comments);
+        } catch (error) {
+            console.log(error);
+            return res.sendStatus(400);
+        }
+    };
 }
